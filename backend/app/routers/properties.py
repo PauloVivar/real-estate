@@ -3,10 +3,12 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas.property import GenerationResponse, PropertyResponse
+from app.services.pdf_service import generate_property_pdf
 from app.services.property_service import (
     create_property,
     get_property,
@@ -74,6 +76,22 @@ def get_property_endpoint(property_id: UUID, db: Session = Depends(get_db)):
     if not prop:
         raise HTTPException(status_code=404, detail="Propiedad no encontrada")
     return prop
+
+
+@router.get("/properties/{property_id}/pdf")
+def download_pdf(property_id: UUID, db: Session = Depends(get_db)):
+    prop = get_property(db, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Propiedad no encontrada")
+
+    pdf_bytes = generate_property_pdf(prop)
+
+    filename = f"propiedad_{prop.tipo_propiedad}_{prop.ciudad}.pdf".replace(" ", "_")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/properties/{property_id}/regenerate", response_model=GenerationResponse)
