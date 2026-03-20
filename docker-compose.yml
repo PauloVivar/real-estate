@@ -1,21 +1,21 @@
-version: "3.9"
+version: '3.9'
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:14-alpine
     environment:
       POSTGRES_USER: vivarq
       POSTGRES_PASSWORD: vivarq_dev
       POSTGRES_DB: vivarq_home
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
 
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - '8000:8000'
     environment:
       DATABASE_URL: postgresql://vivarq:vivarq_dev@postgres:5432/vivarq_home
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -28,7 +28,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     depends_on:
