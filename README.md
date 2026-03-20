@@ -6,7 +6,7 @@ Herramienta web para agentes inmobiliarios en Ecuador. Genera descripciones prof
 
 - **Frontend**: Next.js 14 + TypeScript + Tailwind CSS
 - **Backend**: FastAPI (Python 3.12)
-- **Base de Datos**: PostgreSQL 16
+- **Base de Datos**: PostgreSQL 14
 - **IA**: OpenAI API (gpt-4o-mini)
 - **Infraestructura**: Docker Compose
 
