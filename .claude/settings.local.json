@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(docker compose:*)",
-      "Bash(curl -s http://localhost:8000/api/health)"
+      "Bash(curl -s http://localhost:8000/api/health)",
+      "Bash(PROP_ID=\"eb41732b-d173-4b0a-b052-ad9edaeabdf8\")",
+      "Bash(JOB_ID=\"2b7c2e8a-7f5b-4bf4-9de5-f18c995fe6d9\")",
+      "Bash(for i:*)",
+      "Bash(do echo:*)",
+      "Bash(curl -s \"http://localhost:8000/api/properties/$PROP_ID/video-status/$JOB_ID\")",
+      "Bash(curl -s -o /c/Users/Admin/DEV/projects/real-estate/test_reel.mp4 -w \"HTTP %{http_code}, Size: %{size_download} bytes\\\\n\" \"http://localhost:8000/api/properties/$PROP_ID/video/$JOB_ID\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s http://localhost:3001/health)"
     ]
   }
 }

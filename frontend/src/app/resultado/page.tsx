@@ -1,9 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { PropertyResponse } from "@/lib/types";
-import { getProperty, publishToInstagram } from "@/lib/api";
+import {
+  getProperty,
+  publishToInstagram,
+  generateVideo,
+  getVideoStatus,
+  getVideoDownloadUrl,
+} from "@/lib/api";
 import ResultCard from "@/components/ResultCard";
 
 function ResultadoContent() {
@@ -24,6 +30,16 @@ function ResultadoContent() {
     url?: string;
   } | null>(null);
 
+  // Video generation state
+  const [videoStatus, setVideoStatus] = useState<
+    "idle" | "rendering" | "done" | "error"
+  >("idle");
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoJobId, setVideoJobId] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Instagram publish handler ────────────────────────────────────
   const handlePublishInstagram = async () => {
     if (!id) return;
     setShowPublishModal(false);
@@ -47,6 +63,52 @@ function ResultadoContent() {
     }
   };
 
+  // ── Video generation handler ─────────────────────────────────────
+  const handleGenerateVideo = useCallback(async () => {
+    if (!id) return;
+    setVideoStatus("rendering");
+    setVideoProgress(0);
+    setVideoError(null);
+
+    try {
+      const { jobId } = await generateVideo(id);
+      setVideoJobId(jobId);
+    } catch (err) {
+      setVideoStatus("error");
+      setVideoError(
+        err instanceof Error ? err.message : "Error al iniciar el video"
+      );
+    }
+  }, [id]);
+
+  // ── Poll video status ────────────────────────────────────────────
+  useEffect(() => {
+    if (videoStatus !== "rendering" || !videoJobId || !id) return;
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const status = await getVideoStatus(id, videoJobId);
+        setVideoProgress(status.progress);
+
+        if (status.status === "done") {
+          setVideoStatus("done");
+          if (pollRef.current) clearInterval(pollRef.current);
+        } else if (status.status === "error") {
+          setVideoStatus("error");
+          setVideoError(status.error || "Error durante la renderización");
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      } catch {
+        // Network error — keep polling
+      }
+    }, 2000);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [videoStatus, videoJobId, id]);
+
+  // ── Load property data ───────────────────────────────────────────
   useEffect(() => {
     if (!id) {
       setError("No se proporcionó un ID de propiedad");
@@ -159,6 +221,168 @@ function ResultadoContent() {
             title="Copy para Instagram"
             content={property.instagram_copy}
           />
+        )}
+      </div>
+
+      {/* Video Generation Card */}
+      <div className="mt-6 bg-white rounded-xl shadow-md border border-gray-100 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+            <svg
+              className="w-5 h-5 text-red-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-800">Video Reel</h3>
+            <p className="text-xs text-gray-500">
+              Video vertical 1080x1920 para Instagram y TikTok
+            </p>
+          </div>
+        </div>
+
+        {videoStatus === "idle" && (
+          <button
+            onClick={handleGenerateVideo}
+            className="w-full inline-flex items-center justify-center gap-2 bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors font-medium shadow-md"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            Generar Video Reel
+          </button>
+        )}
+
+        {videoStatus === "rendering" && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">
+                Renderizando video...
+              </span>
+              <span className="text-sm font-bold text-red-600">
+                {Math.round(videoProgress * 100)}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-red-500 to-orange-500 h-3 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${Math.max(videoProgress * 100, 2)}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Esto puede tomar 1-2 minutos. No cierres esta pagina.
+            </p>
+          </div>
+        )}
+
+        {videoStatus === "done" && videoJobId && id && (
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-green-600 mb-1">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span className="font-medium text-sm">Video listo</span>
+            </div>
+            <div className="flex gap-3">
+              <a
+                href={getVideoDownloadUrl(id, videoJobId)}
+                download
+                className="inline-flex items-center gap-2 bg-red-500 text-white px-6 py-2.5 rounded-lg hover:bg-red-600 transition-colors font-medium shadow-md"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+                Descargar Video
+              </a>
+              <button
+                onClick={() => {
+                  setVideoStatus("idle");
+                  setVideoJobId(null);
+                  setVideoProgress(0);
+                }}
+                className="px-4 py-2.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                Generar otro
+              </button>
+            </div>
+          </div>
+        )}
+
+        {videoStatus === "error" && (
+          <div>
+            <div className="flex items-center gap-2 text-red-600 mb-3">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span className="text-sm font-medium">
+                {videoError || "Error al generar el video"}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setVideoStatus("idle");
+                setVideoError(null);
+              }}
+              className="text-sm text-primary-600 hover:underline"
+            >
+              Intentar de nuevo
+            </button>
+          </div>
         )}
       </div>
 

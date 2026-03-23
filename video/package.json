@@ -1,0 +1,27 @@
+{
+  "name": "vivarq-video-renderer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npx ts-node --transpile-only server.ts",
+    "preview": "remotion preview src/index.ts"
+  },
+  "dependencies": {
+    "remotion": "4.0.242",
+    "@remotion/cli": "4.0.242",
+    "@remotion/renderer": "4.0.242",
+    "@remotion/bundler": "4.0.242",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "express": "4.21.2",
+    "uuid": "11.0.5"
+  },
+  "devDependencies": {
+    "typescript": "5.7.2",
+    "ts-node": "10.9.2",
+    "@types/express": "5.0.0",
+    "@types/react": "18.3.12",
+    "@types/node": "22.10.2",
+    "@types/uuid": "10.0.0"
+  }
+}

@@ -27,6 +27,17 @@ services:
       - ./backend:/app
       - uploaded_photos:/app/uploads
 
+  video:
+    build: ./video
+    ports:
+      - '3001:3001'
+    volumes:
+      - ./video:/app
+      - /app/node_modules
+      - uploaded_photos:/app/uploads
+      - video_output:/app/output
+      - ./video/public/music:/app/public/music
+
   frontend:
     build: ./frontend
     ports:
@@ -43,3 +54,4 @@ services:
 volumes:
   pgdata:
   uploaded_photos:
+  video_output:

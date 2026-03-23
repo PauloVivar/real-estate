@@ -32,6 +32,16 @@ export interface PublishInstagramResult {
   async?: boolean;
 }
 
+export interface VideoJobResult {
+  jobId: string;
+}
+
+export interface VideoStatusResult {
+  status: "rendering" | "done" | "error";
+  progress: number;
+  error: string | null;
+}
+
 export interface PropertyResponse {
   id: string;
   tipo_propiedad: string;

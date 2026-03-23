@@ -126,7 +126,7 @@ def _header_footer(canvas, doc):
     # Footer
     canvas.setFillColor(GRAY_TEXT)
     canvas.setFont("Helvetica", 7)
-    canvas.drawString(30, 20, "VIVARQ HOME — Hecho en Ecuador")
+    canvas.drawString(30, 20, "VIVARQ HOME — Hecho en Ecuador by Vivaring Corp.")
     canvas.drawRightString(letter[0] - 30, 20, f"Página {doc.page}")
     canvas.restoreState()
 

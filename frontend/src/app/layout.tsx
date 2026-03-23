@@ -1,16 +1,16 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: "VIVARQ HOME - Generador de Contenido Inmobiliario",
+  title: 'VIVARQ HOME - Generador de Contenido Inmobiliario',
   description:
-    "Genera descripciones profesionales y copies de Instagram para tus propiedades con IA",
-};
+    'Genera descripciones profesionales y copies de Instagram para tus propiedades con IA'
+}
 
 export default function RootLayout({
-  children,
+  children
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="es">
@@ -22,9 +22,7 @@ export default function RootLayout({
                 VH
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  VIVARQ HOME
-                </h1>
+                <h1 className="text-xl font-bold text-gray-900">VIVARQ HOME</h1>
                 <p className="text-xs text-gray-500">
                   Generador de Contenido Inmobiliario con IA
                 </p>
@@ -34,9 +32,15 @@ export default function RootLayout({
         </header>
         <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
         <footer className="text-center py-6 text-sm text-gray-400">
-          VIVARQ HOME &copy; {new Date().getFullYear()} — Hecho en Ecuador
+          VIVARQ HOME &copy; {new Date().getFullYear()} — by{' '}
+          <a
+            href="https://paulo-vivar.vercel.app"
+            className="text-primary-500 hover:underline"
+          >
+            Vivaring Corp.
+          </a>
         </footer>
       </body>
     </html>
-  );
+  )
 }

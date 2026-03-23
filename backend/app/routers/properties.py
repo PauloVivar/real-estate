@@ -2,8 +2,9 @@ import json
 from typing import Optional
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -17,6 +18,8 @@ from app.services.property_service import (
     save_photos,
 )
 from app.services.upload_post_service import UploadPostError, publish_to_instagram
+
+VIDEO_SERVICE_URL = "http://video:3001"
 
 router = APIRouter()
 
@@ -140,6 +143,92 @@ async def publish_instagram_endpoint(
             status_code=e.status_code or 500,
             detail=e.message,
         )
+
+
+# ── Video generation endpoints ────────────────────────────────────────
+
+
+@router.post("/properties/{property_id}/generate-video")
+async def generate_video_endpoint(
+    property_id: UUID, db: Session = Depends(get_db)
+):
+    """Start async video rendering. Returns a job_id to poll progress."""
+    prop = get_property(db, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Propiedad no encontrada")
+
+    # Build inputProps for the Remotion composition
+    input_props = {
+        "photos": prop.fotos or [],
+        "tipoPropiedad": prop.tipo_propiedad,
+        "operacion": prop.operacion,
+        "precio": float(prop.precio),
+        "direccion": prop.direccion,
+        "ciudad": prop.ciudad,
+        "provincia": prop.provincia,
+        "recamaras": prop.recamaras,
+        "banos": prop.banos,
+        "metrosConstruidos": float(prop.metros_construidos) if prop.metros_construidos else None,
+        "metrosTerreno": float(prop.metros_terreno),
+        "estacionamientos": prop.estacionamientos or 0,
+        "agenteNombre": prop.agente_nombre,
+        "agenteTelefono": prop.agente_telefono,
+        "agenteEmail": prop.agente_email,
+        "musicUrl": None,  # Set by video service if background.mp3 exists
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{VIDEO_SERVICE_URL}/render",
+                json=input_props,
+            )
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=503,
+            detail="El servicio de video no está disponible. Verifica que el contenedor 'video' esté corriendo.",
+        )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+
+
+@router.get("/properties/{property_id}/video-status/{job_id}")
+async def video_status_endpoint(property_id: UUID, job_id: str):
+    """Poll render progress. Returns { status, progress, error }."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(f"{VIDEO_SERVICE_URL}/status/{job_id}")
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="Servicio de video no disponible")
+    except httpx.HTTPStatusError:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+
+
+@router.get("/properties/{property_id}/video/{job_id}")
+async def download_video_endpoint(property_id: UUID, job_id: str):
+    """Stream the rendered mp4 video for download."""
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.get(
+                f"{VIDEO_SERVICE_URL}/download/{job_id}",
+            )
+            resp.raise_for_status()
+
+            return Response(
+                content=resp.content,
+                media_type="video/mp4",
+                headers={
+                    "Content-Disposition": f'attachment; filename="reel_{job_id}.mp4"'
+                },
+            )
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="Servicio de video no disponible")
+    except httpx.HTTPStatusError:
+        raise HTTPException(status_code=404, detail="Video no disponible")
 
 
 @router.post("/properties/{property_id}/regenerate", response_model=GenerationResponse)
