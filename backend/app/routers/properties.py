@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas.property import GenerationResponse, PropertyResponse
+from app.services.instagram_image_service import generate_instagram_image
 from app.services.pdf_service import generate_property_pdf
 from app.services.property_service import (
     create_property,
@@ -15,6 +16,7 @@ from app.services.property_service import (
     regenerate_content,
     save_photos,
 )
+from app.services.upload_post_service import UploadPostError, publish_to_instagram
 
 router = APIRouter()
 
@@ -92,6 +94,52 @@ def download_pdf(property_id: UUID, db: Session = Depends(get_db)):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/properties/{property_id}/instagram-image")
+def download_instagram_image(property_id: UUID, db: Session = Depends(get_db)):
+    prop = get_property(db, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Propiedad no encontrada")
+
+    image_bytes = generate_instagram_image(prop)
+
+    filename = f"instagram_{prop.tipo_propiedad}_{prop.ciudad}.png".replace(" ", "_")
+    return Response(
+        content=image_bytes,
+        media_type="image/png",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/properties/{property_id}/publish-instagram")
+async def publish_instagram_endpoint(
+    property_id: UUID, db: Session = Depends(get_db)
+):
+    prop = get_property(db, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Propiedad no encontrada")
+
+    # Generate the Instagram image
+    image_bytes = generate_instagram_image(prop)
+
+    # Build the caption from the stored instagram_copy
+    caption = prop.instagram_copy or ""
+
+    filename = f"instagram_{prop.tipo_propiedad}_{prop.ciudad}.png".replace(" ", "_")
+
+    try:
+        result = await publish_to_instagram(
+            image_bytes=image_bytes,
+            caption=caption,
+            filename=filename,
+        )
+        return result
+    except UploadPostError as e:
+        raise HTTPException(
+            status_code=e.status_code or 500,
+            detail=e.message,
+        )
 
 
 @router.post("/properties/{property_id}/regenerate", response_model=GenerationResponse)

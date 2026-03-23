@@ -6,6 +6,10 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
+    # Upload Post (Instagram publishing)
+    UPLOADPOST_API_KEY: str = ""
+    UPLOADPOST_USER: str = "vivaring"
+
     class Config:
         env_file = ".env"
 

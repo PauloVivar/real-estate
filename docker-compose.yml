@@ -19,6 +19,8 @@ services:
     environment:
       DATABASE_URL: postgresql://vivarq:vivarq_dev@postgres:5432/vivarq_home
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      UPLOADPOST_API_KEY: ${UPLOADPOST_API_KEY}
+      UPLOADPOST_USER: ${UPLOADPOST_USER:-vivarq}
     depends_on:
       - postgres
     volumes:

@@ -24,6 +24,14 @@ export interface GenerationResult {
   instagram_copy: string;
 }
 
+export interface PublishInstagramResult {
+  success: boolean;
+  message: string;
+  url?: string;
+  request_id?: string;
+  async?: boolean;
+}
+
 export interface PropertyResponse {
   id: string;
   tipo_propiedad: string;
